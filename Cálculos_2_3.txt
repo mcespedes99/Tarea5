@@ -1,0 +1,10 @@
+λ = 2 clientes/minuto = 1/30 clientes/segundo
+P(6 o más clientes en el sistema) ≤ 0,05
+s = 1 inicialmente
+ν = 1 clientes/ minuto
+presupuesto = 100 markovs
+s+1 = 30 markovs
+2*b = 20 markovs (sólo se puede comprar 1 por servidor)
+
+2)
+P(6 o más clientes) = sumatoria desde i=6 a infinito de (1-ρ)*ρ^i = 1 - sum desde i=0 a 5 de (1-ρ)*ρ^i 
