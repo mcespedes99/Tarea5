@@ -167,7 +167,7 @@ fraccion = frecuencia/len(t_ev)
 
 # Resultados
 print('Parámetro lambda = ', str(lam*60))
-print('Parámetro nu = ', str(nu*60))
+print('Parámetro nu entre estado 0 y 1 = '+ str(nu*60)+ '. Entre otros estados, nu = ' + str(2*nu*60))
 print('Tiempo con más de {} solicitudes en fila:'.format(P-1))
 print('\t {:0.2f}%'.format(100*fraccion))
 if fraccion <= 0.05:
