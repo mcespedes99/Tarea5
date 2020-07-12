@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Tarea #3. IE0405 - Modelos Probabilísticos de Señales y Sistemas.
-Empezada el Miércoles 17 de Junio 17:14 2020
+Tarea #5. IE0405 - Modelos Probabilísticos de Señales y Sistemas.
+Empezada el Sábado 11 de Julio 09:14 2020
 
 @author: Mauricio Céspedes Tenorio.
 Carné: B71986
@@ -11,7 +11,7 @@ import numpy as np
 from scipy import stats
 import matplotlib.pyplot as plt
 
-print("Respuestas de la Tarea #3 del curso IE0405 - Modelos Probabilísticos de Señales y Sistemas.")
+print("Respuestas del inciso 4 de la Tarea #5 del curso IE0405 - Modelos Probabilísticos de Señales y Sistemas.")
 print("Estudiante: Mauricio Céspedes Tenorio. Carné: B71986.")
 
 # Número de clientes
