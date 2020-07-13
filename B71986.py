@@ -144,7 +144,7 @@ while contador_out < N:
             contador_out += 1
 
 # Umbral de P o más personas en sistema (hay P - 1 en fila)
-P = 6
+P = 7
 
 # Instantes (segundos) de tiempo con P o más solicitudes en sistema
 frecuencia = 0
