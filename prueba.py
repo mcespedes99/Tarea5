@@ -1,6 +1,18 @@
+# -*- coding: utf-8 -*-
+"""
+Tarea #5. IE0405 - Modelos Probabilísticos de Señales y Sistemas.
+Empezada el Sábado 11 de Julio 09:14 2020
+
+@author: Mauricio Céspedes Tenorio.
+Carné: B71986
+"""
+#Librerías
 import numpy as np
 from scipy import stats
 import matplotlib.pyplot as plt
+
+print("Respuestas del inciso 4 de la Tarea #5 del curso IE0405 - Modelos Probabilísticos de Señales y Sistemas.")
+print("Estudiante: Mauricio Céspedes Tenorio. Carné: B71986.")
 
 # Número de clientes
 N = 1000
@@ -9,7 +21,7 @@ N = 1000
 lam = 2/60
 
 # Parámetro de servicio (servicios/segundos)
-nu = 6/60
+nu = 2/60
 
 # Distribución de los tiempos de llegada entre cada cliente
 X = stats.expon(scale = 1/lam)
@@ -29,75 +41,38 @@ for i in range(1, len(t_inte)):
 # Tiempos de servicio (segundos desde inicio de servicio)
 t_serv = np.ceil(Y.rvs(N)).astype('int')
 
+#Vector que define el tiempo de salida del cliente en cada uno de ambos servidores:
+fin = np.zeros(2)
 
 # Inicialización del tiempo de inicio y fin de atención
 inicio = t_lleg[0]          # primera llegada
-t_ev = np.concatenate([np.zeros(inicio-1), np.array([1])])        # vector de eventos
-fin = inicio + t_serv[0]    # primera salida
+fin[0] = inicio + t_serv[0]    # primera salida
 
-frecuencia2 = 0
-contador_lleg = 1
-contador_out = 0
-while contador_out < N:
-    print(contador_out, contador_lleg)
-    if contador_lleg<N:
-        #Se evalúa cuál es el siguiente evento en la línea temporal: llegada de otro cliente, salida del cliente actual o ambas simultáneamente
-        if t_lleg[contador_lleg]<fin:   #Se evalúa si el siguiente cliente llega antes de que el actual se vaya y si pueden llegar más personas
-            t_ev = np.concatenate([t_ev, np.zeros((t_lleg[contador_lleg]-len(t_ev))-1), np.array([1])]) #Se agrega a la línea temporal la llegada del cliente en el tiempo dado
-            contador_lleg += 1
-        elif t_lleg[contador_lleg]>fin: #Se evalúa si el cliente actual se vaya antes de que llegue el siguiente
-            print("lolo")
-            t_ev = np.concatenate([t_ev, np.zeros((fin-len(t_ev))-1), np.array([-1])]) #Se agrega al vector de eventos la salida del cliente actual
-            contador_out += 1
-            fin = np.max((t_lleg[contador_out], fin)) + t_serv[contador_out]
-        elif t_lleg[contador_lleg]==fin: #Si sale y entra una persona al mismo tiempo
-            print("lala")
-            t_ev = np.concatenate([t_ev, np.zeros(fin-len(t_ev))])
-            contador_out += 1
-            fin = np.max((t_lleg[contador_out], fin)) + t_serv[contador_out]
-            if contador_lleg<N:
-                contador_lleg += 1
-    elif contador_lleg==N and contador_out<(N-1):
-        print("lili")
-        t_ev = np.concatenate([t_ev, np.zeros((fin-len(t_ev))-1), np.array([-1])]) #Se agrega al vector de eventos la salida del cliente actual
-        contador_out += 1
-        fin = np.max((t_lleg[contador_out], fin)) + t_serv[contador_out]
-    else:
-        print("cuca")
-        t_ev = np.concatenate([t_ev, np.zeros((fin-len(t_ev))-1), np.array([-1])]) #Se agrega al vector de eventos la salida del cliente actual
-        contador_out += 1
-# Umbral de P o más personas en sistema (hay P - 1 en fila)
-P = 5
-
-# Instantes (segundos) de tiempo con P o más solicitudes en sistema
-frecuencia2 = 0
-
-# Proceso aleatorio (estados n = {0, 1, 2...})
-Xt = np.zeros(t_ev.shape)
-
-# Inicialización de estado n
-n = 0
-
-# Recorrido del vector temporal y conteo de clientes (estado n)
-for i, c in enumerate(t_ev):
-    n += c # sumar (+1) o restar (-1) al estado
-    Xt[i] = n
-    if Xt[i] >= P:
-        frecuencia2 += 1
-
-# Inicialización del tiempo de inicio y fin de atención
-inicio = t_lleg[0]          # primera llegada
-fin = inicio + t_serv[0]    # primera salida
+#Inicialización del tiempo de atención: caso del primer cliente
+t_aten = [inicio]
 
 # Tiempos en que recibe atención cada i-ésimo cliente (!= que llega)
-t_aten = [inicio]
 for i in range(1, N):
-    inicio = np.max((t_lleg[i], fin))
-    fin = inicio + t_serv[i]
+    if fin[0]>=fin[1]:
+        inicio = int(np.max((t_lleg[i], fin[1])))
+        fin[1] = inicio + t_serv[i]
+    else:
+        inicio = int(np.max((t_lleg[i], fin[0])))
+        fin[0] = inicio + t_serv[i]
     t_aten.append(inicio)
 
+#Se debe encontrar el tiempo en el que el último cliente sale, pero esto no significa que sea necesariamente el último en ser atendido al ser 2 servidores.
+#Se crea la variable del tiempo de salida del último cliente:
+t_salida_final = 0
+
+#Se recorre la lista de t_aten para encontrar el tiempo de salida más grande:
+for i, tiempo in enumerate(t_aten):
+    t_salida_nuevo = tiempo + t_serv[i]
+    if t_salida_final<t_salida_nuevo:
+        t_salida_final = t_salida_nuevo
+
 # Inicialización del vector temporal para registrar eventos
-t = np.zeros(t_aten[-1] + t_serv[-1] + 1)
+t = np.zeros(t_salida_final + 1)
 
 # Asignación de eventos de llegada (+1) y salida (-1) de clientes
 for c in range(N):
@@ -106,8 +81,8 @@ for c in range(N):
     j = t_aten[c] + t_serv[c]
     t[j] -= 1
 
-# Umbral de P o más personas en sistema (hay P - 1 en fila)
-P = 5
+# Umbral de P o más personas en sistema (hay P - 2 en fila)
+P = 8
 
 # Instantes (segundos) de tiempo con P o más solicitudes en sistema
 frecuencia = 0
@@ -127,16 +102,23 @@ for i, c in enumerate(t):
 
 # Fracción de tiempo con P o más solicitudes en sistema
 fraccion = frecuencia / len(t)
-
+print(frecuencia, len(t))
 # Resultados
 print('Parámetro lambda = ', str(lam*60))
 print('Parámetro nu = ', str(nu*60))
-print('Tiempo con más de {} solicitudes en fila:'.format(P-2))
+print('Tiempo con más de {} solicitudes en fila:'.format(P-3))
 print('\t {:0.2f}%'.format(100*fraccion))
-if fraccion <= 0.01:
+if fraccion <= 0.05:
     print('\t Sí cumple con la especificación.')
 else:
     print('\t No cumple con la especificación.')
 print('Simulación es equivalente a {:0.2f} horas.'.format(len(t)/3600))
-print(frecuencia)
-print(frecuencia2/len(t_ev))
+
+# Gráfica de X(t) (estados del sistema)
+plt.figure()
+plt.plot(Xt)
+plt.plot(range(len(t)), (P-1)*np.ones(t.shape))
+plt.legend(('$X(t) = n$', '$L_q = $' + str(P-3)))
+plt.ylabel('Clientes en el sistema, $n$')
+plt.xlabel('Tiempo, $t$ / segundos')
+plt.show()

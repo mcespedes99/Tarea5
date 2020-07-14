@@ -27,11 +27,7 @@ nu = 2/60
 X = stats.expon(scale = 1/lam)
 
 # Distribución de los tiempos de servicio a cada cliente
-#Si n<2:
-Y1 = stats.expon(scale = 1/nu)
-#Si n>=2:
-Y2 = stats.expon(scale = 1/(2*nu))
-
+Y = stats.expon(scale = 1/nu)
 
 # Intervalos entre llegadas (segundos desde último cliente)
 t_inte = np.ceil(X.rvs(N)).astype('int')
@@ -42,144 +38,87 @@ for i in range(1, len(t_inte)):
     siguiente = t_lleg[i-1] + t_inte[i]
     t_lleg.append(siguiente)
 
-# Tiempos de servicio (segundos desde inicio de servicio): inicialmente se considera el caso n<2 al haber menos de 2 clientes
-t_serv = np.ceil(Y1.rvs(N)).astype('int')
+# Tiempos de servicio (segundos desde inicio de servicio)
+t_serv = np.ceil(Y.rvs(N)).astype('int')
+
+#Vector que define el tiempo de salida del cliente en cada uno de ambos servidores:
+fin = np.zeros(2)
 
 # Inicialización del tiempo de inicio y fin de atención
-inicio = t_lleg[0]  # primera llegada
-t_ev = np.concatenate([np.zeros(inicio-1), np.array([1])]) # vector de eventos
-fin = inicio + t_serv[0]    # primera salida
+inicio = t_lleg[0]          # primera llegada
+fin[0] = inicio + t_serv[0]    # primera salida
 
-#Cantidad de personas que han llegado al servicio: (se inicia con el primero)
-contador_lleg = 1
-#Cantidad de personas que han salido del servicio:
-contador_out = 0
+#Inicialización del tiempo de atención: caso del primer cliente
+t_aten = [inicio]
 
-#Se utiliza un bucle while que crea el vector temporal total. Se evalúa la llegada y salía de clientes en orden cronológico hasta que la última persona en ser atendida ya salió del sistema.
-while contador_out < N:
-    #Se determina si están operando dos servidores o sólo uno:
-    if (contador_lleg-contador_out)<1: #Tiene que compararse con 1, ya que el tiempo de servicio de cualquier cliente por encima del primero será 1/(2*mu), luego se comentará con su respectivo diagrama de transición:
-        #En caso de haber un sólo servidor, el tiempo de servicio está definido por 1/mu
-        t_serv = np.ceil(Y1.rvs(N)).astype('int')
-        #Se evalúa si aún están llegando clientes o si ya llegaron todos. Tiene que ser menor que N ya que los índices de las listas están definidos desde 0, no desde 1.
-        if contador_lleg<N:
-            #Se evalúa cuál es el siguiente evento en la línea temporal: llegada de otro cliente, salida del cliente actual o ambas simultáneamente
-            if t_lleg[contador_lleg]<fin:   #Se evalúa si el siguiente cliente llega antes de que el actual se vaya y si pueden llegar más personas
-                #Se agregan los 0's (representan segundos que pasaron hasta que sucedió otro evento) entre el último suceso y la llegada del cliente.
-                t_ev = np.concatenate([t_ev, np.zeros((t_lleg[contador_lleg]-len(t_ev))-1), np.array([1])]) #Se agrega a la línea temporal la llegada del cliente en el tiempo dado
-                #Se indica que ya llegó otro cliente:
-                contador_lleg += 1
-            elif t_lleg[contador_lleg]>fin: #Se evalúa si el cliente actual se vaya antes de que llegue el siguiente
-                #Se agregan los 0's (representan segundos que pasaron hasta que sucedió otro evento) entre el último suceso y la salida del cliente.
-                t_ev = np.concatenate([t_ev, np.zeros((fin-len(t_ev))-1), np.array([-1])]) #Se agrega al vector de eventos la salida del cliente actual
-                #Se indica que salió otro cliente:
-                contador_out += 1
-                #Se establece el tiempo de salida del próximo cliente dependiendo de si llegó antes de que el actual saliera o no. A este resultdo se le suma el tiempo de servicio.
-                fin = np.max((t_lleg[contador_out], fin)) + t_serv[contador_out]
-            elif t_lleg[contador_lleg]==fin: #Si sale y entra una persona al mismo tiempo
-                #En este caso, sólo se agregan 0's entre el evento anterior y el actual, ya que hay un +1 y -1 al mismo tiempo, que es un 0.
-                t_ev = np.concatenate([t_ev, np.zeros(fin-len(t_ev))])
-                #Se indica que salió otra persona
-                contador_out += 1
-                #Se actualiza el siguiente tiempo de salida, como en la parte anterior.
-                fin = np.max((t_lleg[contador_out], fin)) + t_serv[contador_out]
-                #Se indica que llegó otro cliente
-                contador_lleg += 1
-        #En caso de que ya llegaron todos los clientes y aún no queda sólo un cliente en salir:
-        elif contador_lleg==N and contador_out<(N-1):
-            #Se agregan los 0's (representan segundos que pasaron hasta que sucedió otro evento) entre el último suceso y la salida del cliente.
-            t_ev = np.concatenate([t_ev, np.zeros((fin-len(t_ev))-1), np.array([-1])]) #Se agrega al vector de eventos la salida del cliente actual
-            #Se indica que salió otro cliente
-            contador_out += 1
-            #Se actualiza el siguiente tiempo de salida como ya se explicó:
-            fin = np.max((t_lleg[contador_out], fin)) + t_serv[contador_out]
-        #Este caso sólo aplica para la salida del último cliente:
-        else:
-            #Se agregan los 0's (representan segundos que pasaron hasta que sucedió otro evento) entre el último suceso y la salida del cliente.
-            t_ev = np.concatenate([t_ev, np.zeros((fin-len(t_ev))-1), np.array([-1])]) #Se agrega al vector de eventos la salida del cliente actual
-            #Se suma el último cliente a los que ya salieron:
-            contador_out += 1
-
-    #Caso con dos servidores:
+# Tiempos en que recibe atención cada i-ésimo cliente (!= que llega)
+for i in range(1, N):
+    if fin[0]>=fin[1]:
+        inicio = int(np.max((t_lleg[i], fin[1])))
+        fin[1] = inicio + t_serv[i]
     else:
-        #Se duplica el mu, con lo que se reduce el tiempo de servicio:
-        t_serv = np.ceil(Y2.rvs(N)).astype('int')
-        #Se evalúa si aún están llegando clientes o si ya llegaron todos. Tiene que ser menor que N ya que los índices de las listas están definidos desde 0, no desde 1.
-        if contador_lleg<N:
-            #Se evalúa cuál es el siguiente evento en la línea temporal: llegada de otro cliente, salida del cliente actual o ambas simultáneamente
-            if t_lleg[contador_lleg]<fin:   #Se evalúa si el siguiente cliente llega antes de que el actual se vaya y si pueden llegar más personas
-                #Se agregan los 0's (representan segundos que pasaron hasta que sucedió otro evento) entre el último suceso y la llegada del cliente.
-                t_ev = np.concatenate([t_ev, np.zeros((t_lleg[contador_lleg]-len(t_ev))-1), np.array([1])]) #Se agrega a la línea temporal la llegada del cliente en el tiempo dado
-                #Se indica que ya llegó otro cliente:
-                contador_lleg += 1
-            elif t_lleg[contador_lleg]>fin: #Se evalúa si el cliente actual se vaya antes de que llegue el siguiente
-                #Se agregan los 0's (representan segundos que pasaron hasta que sucedió otro evento) entre el último suceso y la salida del cliente.
-                t_ev = np.concatenate([t_ev, np.zeros((fin-len(t_ev))-1), np.array([-1])]) #Se agrega al vector de eventos la salida del cliente actual
-                #Se indica que salió otro cliente:
-                contador_out += 1
-                #Se establece el tiempo de salida del próximo cliente dependiendo de si llegó antes de que el actual saliera o no. A este resultdo se le suma el tiempo de servicio.
-                fin = np.max((t_lleg[contador_out], fin)) + t_serv[contador_out]
-            elif t_lleg[contador_lleg]==fin: #Si sale y entra una persona al mismo tiempo
-                #En este caso, sólo se agregan 0's entre el evento anterior y el actual, ya que hay un +1 y -1 al mismo tiempo, que es un 0.
-                t_ev = np.concatenate([t_ev, np.zeros(fin-len(t_ev))])
-                #Se indica que salió otra persona
-                contador_out += 1
-                #Se actualiza el siguiente tiempo de salida, como en la parte anterior.
-                fin = np.max((t_lleg[contador_out], fin)) + t_serv[contador_out]
-                #Se indica que llegó otro cliente
-                contador_lleg += 1
-        #En caso de que ya llegaron todos los clientes y aún no queda sólo un cliente en salir:
-        elif contador_lleg==N and contador_out<(N-1):
-            #Se agregan los 0's (representan segundos que pasaron hasta que sucedió otro evento) entre el último suceso y la salida del cliente.
-            t_ev = np.concatenate([t_ev, np.zeros((fin-len(t_ev))-1), np.array([-1])]) #Se agrega al vector de eventos la salida del cliente actual
-            #Se indica que salió otro cliente
-            contador_out += 1
-            #Se actualiza el siguiente tiempo de salida como ya se explicó:
-            fin = np.max((t_lleg[contador_out], fin)) + t_serv[contador_out]
-        #Este caso sólo aplica para la salida del último cliente:
-        else:
-            #Se agregan los 0's (representan segundos que pasaron hasta que sucedió otro evento) entre el último suceso y la salida del cliente.
-            t_ev = np.concatenate([t_ev, np.zeros((fin-len(t_ev))-1), np.array([-1])]) #Se agrega al vector de eventos la salida del cliente actual
-            #Se suma el último cliente a los que ya salieron:
-            contador_out += 1
+        inicio = int(np.max((t_lleg[i], fin[0])))
+        fin[0] = inicio + t_serv[i]
+    t_aten.append(inicio)
 
-# Umbral de P o más personas en sistema (hay P - 1 en fila)
-P = 7
+#Se debe encontrar el tiempo en el que el último cliente sale, pero esto no significa que sea necesariamente el último en ser atendido al ser 2 servidores.
+#Se crea la variable del tiempo de salida del último cliente:
+t_salida_final = 0
+
+#Se recorre la lista de t_aten para encontrar el tiempo de salida más grande:
+for i, tiempo in enumerate(t_aten):
+    t_salida_nuevo = tiempo + t_serv[i]
+    if t_salida_final<t_salida_nuevo:
+        t_salida_final = t_salida_nuevo
+
+# Inicialización del vector temporal para registrar eventos
+t = np.zeros(t_salida_final + 1)
+
+# Asignación de eventos de llegada (+1) y salida (-1) de clientes
+for c in range(N):
+    i = t_lleg[c]
+    t[i] += 1
+    j = t_aten[c] + t_serv[c]
+    t[j] -= 1
+
+# Umbral de P o más personas en sistema (hay P - 2 en fila)
+P = 8
 
 # Instantes (segundos) de tiempo con P o más solicitudes en sistema
 frecuencia = 0
 
 # Proceso aleatorio (estados n = {0, 1, 2...})
-Xt = np.zeros(t_ev.shape)
+Xt = np.zeros(t.shape)
 
 # Inicialización de estado n
 n = 0
 
 # Recorrido del vector temporal y conteo de clientes (estado n)
-for i, c in enumerate(t_ev):
+for i, c in enumerate(t):
     n += c # sumar (+1) o restar (-1) al estado
     Xt[i] = n
     if Xt[i] >= P:
         frecuencia += 1
 
 # Fracción de tiempo con P o más solicitudes en sistema
-fraccion = frecuencia/len(t_ev)
+fraccion = frecuencia / len(t)
 
 # Resultados
 print('Parámetro lambda = ', str(lam*60))
-print('Parámetro nu entre estado 0 y 1 = '+ str(nu*60)+ '. Entre otros estados, nu = ' + str(2*nu*60))
-print('Tiempo con más de {} solicitudes en fila:'.format(P-1))
+print('Parámetro nu = ', str(nu*60))
+print('Tiempo con más de {} solicitudes en fila:'.format(P-3))
 print('\t {:0.2f}%'.format(100*fraccion))
 if fraccion <= 0.05:
     print('\t Sí cumple con la especificación.')
 else:
     print('\t No cumple con la especificación.')
-print('Simulación es equivalente a {:0.2f} horas.'.format(len(t_ev)/3600))
+print('Simulación es equivalente a {:0.2f} horas.'.format(len(t)/3600))
 
 # Gráfica de X(t) (estados del sistema)
 plt.figure()
 plt.plot(Xt)
-plt.plot(range(len(t_ev)), (P-1)*np.ones(t_ev.shape))
+plt.plot(range(len(t)), (P-1)*np.ones(t.shape))
+plt.legend(('$X(t) = n$', '$L_q = $' + str(P-3)))
 plt.ylabel('Clientes en el sistema, $n$')
 plt.xlabel('Tiempo, $t$ / segundos')
 plt.show()
